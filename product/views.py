@@ -1,11 +1,13 @@
-from django.views import View
-from django.http  import JsonResponse
+from django.views     import View
+from django.http      import JsonResponse
 from django.db.models import Min, Q, Prefetch, Count
+from django.db        import IntegrityError
 
-from product.models import Product, ProductImage, ProductSize, Brand, BrandLine
+from product.models import Product, ProductImage, ProductSize, Brand, BrandLine, Size, ProductSize
 from bidding.models import Bidding, Status
 from account.models import User, Wishlist
-from account.utils  import login_check
+from account.utils  import login_check, login_decorator
+
 
 class ProductFilterView(View):
     @login_check
@@ -84,3 +86,50 @@ class ProductFilterView(View):
         
         except ValueError:
             return JsonResponse({'message': 'INVALID LITERAL'}, status=400)
+
+class WishlistView(View):
+    @login_decorator
+    def get(self, request, product_id):
+        wish_count = Count('productsize__wishlist',filter=
+        Q(productsize__wishlist__user=request.user.id)&
+        Q(productsize__wishlist__is_wished=True)&
+        Q(productsize__wishlist__product_size__product=product_id))
+
+        sizes = Size.objects.annotate(is_wished=wish_count).all()
+
+        result = [
+            {
+                'size_id': size.id,
+                'size_name': size.size,
+                'is_wished': True if size.is_wished > 0 else False
+            } for size in sizes
+        ]
+        
+        return JsonResponse({'result': result}, status=200)
+
+    @login_decorator
+    def post(self, request, product_id):
+        try:
+            size_id = request.GET.get('size_id')
+
+            if not size_id:
+                return JsonResponse({'message': 'TYPE SIZE_ID'}, status=400)
+            
+            wishlist = Wishlist.objects.get_or_create(user_id=request.user.id, product_size__product_id=product_id, product_size__size_id=size_id)
+            print(wishlist)
+            if False in wishlist:
+                if wishlist[0].is_wished:
+                    wishlist[0].is_wished = False
+                    wishlist[0].save()
+                else:
+                    wishlist[0].is_wished = True
+                    wishlist[0].save()
+            
+            return JsonResponse({'message': 'SUCCESS'}, status=200)
+        
+        except ValueError:
+            return JsonResponse({'message': 'INVALID SIZE_ID'}, status=400)
+        
+        except IntegrityError:
+            return JsonResponse({'message': 'OUT OF INDEX'}, status=400)
+        
