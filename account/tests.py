@@ -40,7 +40,7 @@ class SignInTest(TestCase):
 
         reponse = client.post('/account/signin', json.dumps(user), content_type='application/json')
 
-        self.assertEqual(reponse.status_code, 400)
+        self.assertEqual(reponse.status_code, 401)
         self.assertEqual(reponse.json(), {'message':'INVALID_USER'})
 
     def test_signin_invalid_email(self):
@@ -53,7 +53,7 @@ class SignInTest(TestCase):
 
         reponse = client.post('/account/signin', json.dumps(user), content_type='application/json')
 
-        self.assertEqual(reponse.status_code, 400)
+        self.assertEqual(reponse.status_code, 401)
         self.assertEqual(reponse.json(), {'message':'INVALID_USER'})
 
     def test_signin_key_error(self):
